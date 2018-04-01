@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset='utf-8'/>
+        <title>Tetris</title>
+        <style>
+            #gamescreen {
+                border: 2px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="gamescreen" width="500 " height="600"></canvas>
+    </body>
+    <script>
+        function draw() {
+            var canvas = document.getElementById("gamescreen");
+            if (canvas.getContext) {
+                var ctx = canvas.getContext('2d');
+                drawI(ctx, 10, 150);
+                drawL(ctx, 60, 150);
+                drawB(ctx, 150, 150);
+                drawT(ctx, 280, 150); 
+                drawS(ctx, 150, 250);
+                drawZ(ctx, 10, 250);          
+            }
+        }
+
+        function drawSquare(ctx, x, y) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 40, y);
+            ctx.lineTo(x + 40, y + 40);
+            ctx.lineTo(x, y + 40);
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawI(ctx, x, y) {
+            drawSquare(ctx, x, y - 40 * 0);
+            drawSquare(ctx, x, y - 40 * 1);
+            drawSquare(ctx, x, y - 40 * 2);
+            drawSquare(ctx, x, y - 40 * 3);
+        }
+
+        function drawL(ctx, x, y) {
+            drawSquare(ctx, x, y - 40 * 0);
+            drawSquare(ctx, x + 40 * 1, y);
+            drawSquare(ctx, x, y - 40 * 1);
+            drawSquare(ctx, x, y - 40 * 2);
+        }
+
+        function drawB(ctx, x, y) {
+            drawSquare(ctx, x, y - 40 * 0);
+            drawSquare(ctx, x + 40 * 1, y);
+            drawSquare(ctx, x + 40 * 1, y - 40 * 1);
+            drawSquare(ctx, x, y - 40 * 1);
+        }
+
+        function drawT(ctx, x, y) {
+            drawSquare(ctx, x, y - 40 * 0);
+            drawSquare(ctx, x - 40 * 1, y);
+            drawSquare(ctx, x + 40 * 1, y);
+            drawSquare(ctx, x, y - 40 * 1);
+        }
+
+        function drawS(ctx, x, y) {
+            drawSquare(ctx, x, y - 40 * 0);
+            drawSquare(ctx, x + 40 * 1, y);
+            drawSquare(ctx, x + 40 * 1, y - 40 * 1);
+            drawSquare(ctx, x + 40 * 2, y - 40 * 1);
+        }
+
+        function drawZ(ctx, x, y) {
+            drawSquare(ctx, x + 40 * 1, y);
+            drawSquare(ctx, x + 40 * 2, y);
+            drawSquare(ctx, x + 40 * 1, y - 40 * 1);
+            drawSquare(ctx, x - 40 * 0, y - 40 * 1);
+        }
+
+        draw();
+        </script>
+</html>
