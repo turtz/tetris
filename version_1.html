@@ -5,79 +5,390 @@
         <title>Tetris</title>
         <style>
             #gamescreen {
-                border: 2px solid black;
+                border: 2px solid grey;
             }
         </style>
     </head>
     <body>
-        <canvas id="gamescreen" width="500 " height="600"></canvas>
+        <canvas id="gamescreen" width="0" height="0"></canvas>
     </body>
     <script>
-        function draw() {
-            var canvas = document.getElementById("gamescreen");
-            if (canvas.getContext) {
-                var ctx = canvas.getContext('2d');
-                drawI(ctx, 10, 150);
-                drawL(ctx, 60, 150);
-                drawB(ctx, 150, 150);
-                drawT(ctx, 280, 150); 
-                drawS(ctx, 150, 250);
-                drawZ(ctx, 10, 250);          
+        var canvas = document.getElementById("gamescreen");
+        var boxsize = 16;
+
+        function init() {
+            canvas.width = screen.width;
+            canvas.height = screen.height;
+        }
+
+        function bboxL(blocks) {
+            return Math.min(...blocks.map(function(block) { return block.x; }));
+        }
+
+        function bboxR(blocks) {
+            return Math.max(...blocks.map(function(block) { return block.x + block.w; }));
+        }
+
+        function bboxB(blocks) {
+            return Math.max(...blocks.map(function(block) { return block.y; }));
+        }
+
+        function hasShapeOverlap(blocks) {
+            let hasCollided = blocks.map(function(block) {
+                if (screen.existingBlocks.find(function(eblock) {
+                    return eblock.x === block.x && eblock.y === block.y
+                })) { 
+                    return true; 
+                }
+                else {
+                    return false;
+                }
+            });
+
+            return !hasCollided.every(function(col) {
+                return col === false;
+            })
+        }
+
+        function hasLanded(blocks) {
+            let isOnGround = bboxB(blocks) >= screen.height;
+            if (isOnGround) {
+                return true
+            } else {
+                let isOnOtherShape = blocks.map(function(block) {
+                    if (screen.existingBlocks.find(function(eblock) {
+                        return eblock.x === block.x && (eblock.y - boxsize) === block.y;
+                    })) {
+                        return true;
+                    }
+                    else {
+                        return false;
+                    }
+                });
+
+                return !isOnOtherShape.every(function(col) {
+                    return col === false;
+                });
             }
         }
 
-        function drawSquare(ctx, x, y) {
+        function solidifyShapes() {
+            screen.currentShape.blocks.forEach(function(block) {
+                if (screen.existingBlocks.find(function(eblock) {
+                    return eblock.x === block.x && eblock.y === block.y;
+                }));
+                screen.existingBlocks.push(block);
+                console.log(screen.existingBlocks);
+            }
+        );
+
+            let nextShape = screen.shapesGenerator[Math.floor(Math.random() * screen.shapesGenerator.length)];
+            screen.currentShape.type = nextShape;
+            screen.currentShape.x = 0;
+            screen.currentShape.y = boxsize * 3;
+            screen.currentShape.rotation = 0;
+            screen.currentShape.landed = false;
+        }
+
+        function rowDeletion() {
+            console.log(screen.existingBlocks.reduce(function(accumulator, block) {
+                if (accumulator[block.y] !== undefined) {
+                    accumulator[block.y] += 1;
+                }
+                else {
+                    accumulator[block.y] = 1;
+                }
+                return accumulator;
+            }, {}));
+        }
+
+        function renderSquare(ctx, block) {
             ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + 40, y);
-            ctx.lineTo(x + 40, y + 40);
-            ctx.lineTo(x, y + 40);
+            ctx.moveTo(block.x, block.y);
+            ctx.lineTo(block.x + block.w, block.y);
+            ctx.lineTo(block.x + block.w, block.y - block.l);
+            ctx.lineTo(block.x, block.y - block.l);
             ctx.closePath();
+            ctx.fill();
             ctx.stroke();
         }
 
-        function drawI(ctx, x, y) {
-            drawSquare(ctx, x, y - 40 * 0);
-            drawSquare(ctx, x, y - 40 * 1);
-            drawSquare(ctx, x, y - 40 * 2);
-            drawSquare(ctx, x, y - 40 * 3);
+        function drawSquare(x, y) {
+            return {
+                x: x,
+                y: y,
+                l: boxsize,
+                w: boxsize
+            }
         }
 
-        function drawL(ctx, x, y) {
-            drawSquare(ctx, x, y - 40 * 0);
-            drawSquare(ctx, x + 40 * 1, y);
-            drawSquare(ctx, x, y - 40 * 1);
-            drawSquare(ctx, x, y - 40 * 2);
+        function drawI(x, y, rotation) {
+            if (rotation === 0 | rotation === 180) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x, y - boxsize * 1),
+                    drawSquare(x, y - boxsize * 2),
+                    drawSquare(x, y - boxsize * 3)
+                ];
+            }
+
+            else if (rotation === 90 | rotation === 270) {
+                return [
+                    drawSquare(x, y - boxsize * 1),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x + boxsize * 2, y - boxsize * 1),
+                    drawSquare(x + boxsize * 3, y - boxsize * 1),
+                ];
+            }
         }
 
-        function drawB(ctx, x, y) {
-            drawSquare(ctx, x, y - 40 * 0);
-            drawSquare(ctx, x + 40 * 1, y);
-            drawSquare(ctx, x + 40 * 1, y - 40 * 1);
-            drawSquare(ctx, x, y - 40 * 1);
+        function drawL(x, y, rotation) {
+            if (rotation === 0) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x, y - boxsize * 1),
+                    drawSquare(x, y - boxsize * 2)
+                ];
+            }
+
+            else if (rotation === 90) {
+                return [
+                    drawSquare(x, y - boxsize * 1),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x - boxsize * 1, y - boxsize * 1),
+                    drawSquare(x - boxsize * 1, y + boxsize * 0)
+                ];
+            }
+
+            else if (rotation === 180) {
+                return [
+                    drawSquare(x, y - boxsize * 1),
+                    drawSquare(x, y - boxsize * 2),
+                    drawSquare(x - boxsize * 1, y - boxsize * 2),
+                    drawSquare(x, y + boxsize * 0)
+                ];
+            }
+
+            else if (rotation === 270) {
+                return [
+                    drawSquare(x, y - boxsize * 1),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x - boxsize * 1, y - boxsize * 1),
+                    drawSquare(x + boxsize * 1, y - boxsize * 2)
+                ];
+            }
         }
 
-        function drawT(ctx, x, y) {
-            drawSquare(ctx, x, y - 40 * 0);
-            drawSquare(ctx, x - 40 * 1, y);
-            drawSquare(ctx, x + 40 * 1, y);
-            drawSquare(ctx, x, y - 40 * 1);
+        function drawB(x, y, rotation) {
+            if (rotation === 0 | rotation === 90 | rotation === 180 | rotation === 270) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x, y - boxsize * 1)
+                ];
+            }
         }
 
-        function drawS(ctx, x, y) {
-            drawSquare(ctx, x, y - 40 * 0);
-            drawSquare(ctx, x + 40 * 1, y);
-            drawSquare(ctx, x + 40 * 1, y - 40 * 1);
-            drawSquare(ctx, x + 40 * 2, y - 40 * 1);
+        function drawT(x, y, rotation) {
+            if (rotation === 0) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x - boxsize * 1, y),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x, y - boxsize * 1)
+                ];
+            }
+
+            else if (rotation === 90) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x - boxsize * 0, y + boxsize * 1),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x, y - boxsize * 1)
+                ];
+            }
+
+            else if (rotation === 180) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x - boxsize * 0, y + boxsize * 1),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x - boxsize * 1, y - boxsize * 0)
+                ];
+            }
+
+            else if (rotation === 270) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x - boxsize * 0, y + boxsize * 1),
+                    drawSquare(x + boxsize * 0, y - boxsize * 1),
+                    drawSquare(x - boxsize * 1, y - boxsize * 0)
+                ];
+            }
         }
 
-        function drawZ(ctx, x, y) {
-            drawSquare(ctx, x + 40 * 1, y);
-            drawSquare(ctx, x + 40 * 2, y);
-            drawSquare(ctx, x + 40 * 1, y - 40 * 1);
-            drawSquare(ctx, x - 40 * 0, y - 40 * 1);
+        function drawS(x, y, rotation) {
+            if (rotation === 0 | rotation === 180) {
+                return [
+                    drawSquare(x, y - boxsize * 0),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x + boxsize * 2, y - boxsize * 1)
+                ];
+            }
+
+            else if (rotation === 90 | rotation === 270) {
+                return [
+                    drawSquare(x + boxsize * 2, y - boxsize * 0),
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x + boxsize * 2, y + boxsize * 1)
+                ];
+            }
         }
 
+        function drawZ(x, y, rotation) {
+            if (rotation === 0 | rotation === 180) {
+                return [
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x + boxsize * 2, y),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x - boxsize * 0, y - boxsize * 1)
+                ];
+            }
+
+            else if (rotation === 90 | rotation === 270) {
+                return [
+                    drawSquare(x + boxsize * 1, y),
+                    drawSquare(x - boxsize * 0, y),
+                    drawSquare(x + boxsize * 1, y - boxsize * 1),
+                    drawSquare(x - boxsize * 0, y + boxsize * 1)
+                ];
+            }
+        }
+
+        var screen = {
+            height: 512,
+            width: 336,  
+            currentShape: {
+                x: 160,
+                y: boxsize * 4,
+                rotation: 0,
+                type: 'I',
+                blocks: [],
+                landed: false
+            },
+            existingBlocks: [],
+            timer: null,
+            shapes: {
+                I: drawI,
+                L: drawL,
+                B: drawB,
+                T: drawT,
+                S: drawS,
+                Z: drawZ
+            },
+            shapesGenerator: ["I", "L", "B", "T", "S", "Z"]
+        }
+
+        function draw() {
+            if (canvas.getContext) {
+                var ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Actually draw the blocks
+                screen.currentShape.blocks = screen.shapes[screen.currentShape.type](screen.currentShape.x, 
+                                                                                     screen.currentShape.y, 
+                                                                                     screen.currentShape.rotation);;
+                [...screen.existingBlocks, ...screen.currentShape.blocks].forEach(function(block) { return renderSquare(ctx, block); }); 
+            }
+        }
+
+        document.addEventListener("keydown", function(e) {
+            // make backup of current shape
+            screen.currentShapeBeforeMove = {
+                x: screen.currentShape.x,
+                y: screen.currentShape.y,
+                rotation: screen.currentShape.rotation,
+                type: screen.currentShape.type,
+                blocks: screen.currentShape.blocks
+            }
+
+            const keyName = e.key;
+            
+            if (keyName === "ArrowLeft") {
+                screen.currentShape.x -= boxsize;
+            }
+            else if (keyName === "ArrowRight") {
+                screen.currentShape.x += boxsize;
+            }
+            else if (keyName === "ArrowDown") {
+                screen.currentShape.y += boxsize;
+            }
+            else if (keyName.toLowerCase() === "z") {
+                screen.currentShape.rotation -= 90;
+                if (screen.currentShape.rotation < 0) {
+                    screen.currentShape.rotation = 270;
+                }
+            }
+            else if (keyName.toLowerCase() === "x") {
+                screen.currentShape.rotation += 90;
+                if (screen.currentShape.rotation > 270) {
+                    screen.currentShape.rotation = 0;
+                }
+            }
+
+            else if (keyName === "a") {
+                rowDeletion();
+            }
+
+            let nextPosition = screen.shapes[screen.currentShape.type](screen.currentShape.x, 
+                                                                       screen.currentShape.y, 
+                                                                       screen.currentShape.rotation);
+            
+            screen.currentShape.blocks = nextPosition;
+
+            // Collision checking
+            if (!(bboxL(nextPosition) >= 0 && bboxR(nextPosition) <= screen.width && bboxB(nextPosition) <= screen.height && !hasShapeOverlap(nextPosition))) {
+                // Revert currentShape to our backup before we moved it
+                screen.currentShape = screen.currentShapeBeforeMove;
+            }
+            
+            // Else if shape has been moved down, reset the fall counter
+            if (keyName === "ArrowDown") {
+                fallTick = 0;
+            }
+            
+            draw();
+        });
+
+        let fallTick = 0;
+        setInterval(function() {
+            fallTick += 1;
+            
+            // make block fall after 3 seconds
+            if (fallTick === 30) {
+                document.dispatchEvent(new KeyboardEvent('keydown', {'key':'ArrowDown'}));
+                fallTick = 0;
+                draw();
+            }
+
+            if (hasLanded(screen.currentShape.blocks) && !screen.currentShape.landed) {
+                screen.currentShape.landed = true;
+                setTimeout(function() {
+                   if (hasLanded(screen.currentShape.blocks)) {
+                       solidifyShapes();
+                   }
+                }, 500);
+            }
+            else if (!hasLanded(screen.currentShape.blocks) && screen.currentShape.landed) {
+                screen.currentShape.landed = false;
+            }
+        }, 100);
+
+        init();
         draw();
         </script>
 </html>
