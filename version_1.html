@@ -74,13 +74,11 @@
 
         function solidifyShapes() {
             screen.currentShape.blocks.forEach(function(block) {
-                if (screen.existingBlocks.find(function(eblock) {
+                if (!screen.existingBlocks.find(function(eblock) {
                     return eblock.x === block.x && eblock.y === block.y;
-                }));
-                screen.existingBlocks.push(block);
-                console.log(screen.existingBlocks);
-            }
-        );
+                })) { screen.existingBlocks.push(block);
+                };
+            });
 
             let nextShape = screen.shapesGenerator[Math.floor(Math.random() * screen.shapesGenerator.length)];
             screen.currentShape.type = nextShape;
@@ -91,7 +89,7 @@
         }
 
         function rowDeletion() {
-            console.log(screen.existingBlocks.reduce(function(accumulator, block) {
+            let result = screen.existingBlocks.reduce(function(accumulator, block) {
                 if (accumulator[block.y] !== undefined) {
                     accumulator[block.y] += 1;
                 }
@@ -99,7 +97,35 @@
                     accumulator[block.y] = 1;
                 }
                 return accumulator;
-            }, {}));
+            }, {});
+
+            screen.existingBlocks = screen.existingBlocks.filter(function(block) {
+                if (result[block.y] === screen.width / boxsize) {
+                    return false;
+                } 
+                else {
+                    return true;
+                }
+            });
+
+            let rows = Object.keys(result);
+            let dropCount = rows.reduce(function (accumulator, row) { 
+                if (result[row] === screen.width / boxsize) {
+                     rows.forEach(function (otherRow) {
+                        if (accumulator[otherRow] === undefined) {
+                        accumulator[otherRow] = 0;
+                        }
+                         if (otherRow < row) {
+                             accumulator[otherRow] += boxsize;
+                        }
+                     });
+                } return accumulator;
+            }, {});
+
+            screen.existingBlocks = screen.existingBlocks.map(function(block) {
+                block.y = block.y + dropCount[block.y];
+                return block; 
+            })
         }
 
         function renderSquare(ctx, block) {
@@ -340,10 +366,6 @@
                 }
             }
 
-            else if (keyName === "a") {
-                rowDeletion();
-            }
-
             let nextPosition = screen.shapes[screen.currentShape.type](screen.currentShape.x, 
                                                                        screen.currentShape.y, 
                                                                        screen.currentShape.rotation);
@@ -380,6 +402,7 @@
                 setTimeout(function() {
                    if (hasLanded(screen.currentShape.blocks)) {
                        solidifyShapes();
+                       rowDeletion();
                    }
                 }, 500);
             }
