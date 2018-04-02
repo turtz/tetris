@@ -1,417 +1,461 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset='utf-8'/>
-        <title>Tetris</title>
-        <style>
-            #gamescreen {
-                border: 2px solid grey;
-            }
-        </style>
-    </head>
-    <body>
-        <canvas id="gamescreen" width="0" height="0"></canvas>
-    </body>
-    <script>
-        var canvas = document.getElementById("gamescreen");
-        var boxsize = 16;
 
-        function init() {
-            canvas.width = screen.width;
-            canvas.height = screen.height;
+<head>
+    <meta charset='utf-8' />
+    <title>Tetris</title>
+    <style>
+        #gamegame {
+            border: 2px solid grey;
         }
+    </style>
+</head>
 
-        function bboxL(blocks) {
-            return Math.min(...blocks.map(function(block) { return block.x; }));
-        }
+<body>
+    <canvas id="gamegame" width="0" height="0"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById("gamegame");
+    var boxsize = 16;
+    let names = ["aardvark", "bandicoot", "capybara", "dodo", "elk", "ferret"];
+    var game = {
+        height: 512,
+        width: 336,
+        buffer: [],
+        score: 0,
+        currentShape: {
+            x: 160,
+            y: boxsize * 4,
+            rotation: 0,
+            type: 'I',
+            name: "dodo",
+            blocks: [],
+            landed: false
+        },
+        existingBlocks: [],
+        timer: null,
+        shapes: {
+            I: drawI,
+            L: drawL,
+            B: drawB,
+            T: drawT,
+            S: drawS,
+            Z: drawZ
+        },
+        shapesGenerator: ["I", "L", "B", "T", "S", "Z"]
+    }
 
-        function bboxR(blocks) {
-            return Math.max(...blocks.map(function(block) { return block.x + block.w; }));
-        }
 
-        function bboxB(blocks) {
-            return Math.max(...blocks.map(function(block) { return block.y; }));
-        }
+    function init() {
+        canvas.width = game.width;
+        canvas.height = game.height;
+    }
 
-        function hasShapeOverlap(blocks) {
-            let hasCollided = blocks.map(function(block) {
-                if (screen.existingBlocks.find(function(eblock) {
-                    return eblock.x === block.x && eblock.y === block.y
-                })) { 
-                    return true; 
-                }
-                else {
-                    return false;
-                }
-            });
+    function bboxL(blocks) {
+        return Math.min(...blocks.map(function (block) { return block.x; }));
+    }
 
-            return !hasCollided.every(function(col) {
-                return col === false;
-            })
-        }
+    function bboxR(blocks) {
+        return Math.max(...blocks.map(function (block) { return block.x + block.w; }));
+    }
 
-        function hasLanded(blocks) {
-            let isOnGround = bboxB(blocks) >= screen.height;
-            if (isOnGround) {
-                return true
-            } else {
-                let isOnOtherShape = blocks.map(function(block) {
-                    if (screen.existingBlocks.find(function(eblock) {
-                        return eblock.x === block.x && (eblock.y - boxsize) === block.y;
-                    })) {
-                        return true;
-                    }
-                    else {
-                        return false;
-                    }
-                });
+    function bboxB(blocks) {
+        return Math.max(...blocks.map(function (block) { return block.y; }));
+    }
 
-                return !isOnOtherShape.every(function(col) {
-                    return col === false;
-                });
+    function bboxT(blocks) {
+        return Math.min(...blocks.map(function (block) { return block.y; }));
+    }
+
+    function hasShapeOverlap(blocks) {
+        let hasCollided = blocks.map(function (block) {
+            if (game.existingBlocks.find(function (eblock) {
+                return eblock.x === block.x && eblock.y === block.y
+            })) {
+                return true;
             }
-        }
-
-        function solidifyShapes() {
-            screen.currentShape.blocks.forEach(function(block) {
-                if (!screen.existingBlocks.find(function(eblock) {
-                    return eblock.x === block.x && eblock.y === block.y;
-                })) { screen.existingBlocks.push(block);
-                };
-            });
-
-            let nextShape = screen.shapesGenerator[Math.floor(Math.random() * screen.shapesGenerator.length)];
-            screen.currentShape.type = nextShape;
-            screen.currentShape.x = 0;
-            screen.currentShape.y = boxsize * 3;
-            screen.currentShape.rotation = 0;
-            screen.currentShape.landed = false;
-        }
-
-        function rowDeletion() {
-            let result = screen.existingBlocks.reduce(function(accumulator, block) {
-                if (accumulator[block.y] !== undefined) {
-                    accumulator[block.y] += 1;
-                }
-                else {
-                    accumulator[block.y] = 1;
-                }
-                return accumulator;
-            }, {});
-
-            screen.existingBlocks = screen.existingBlocks.filter(function(block) {
-                if (result[block.y] === screen.width / boxsize) {
-                    return false;
-                } 
-                else {
-                    return true;
-                }
-            });
-
-            let rows = Object.keys(result);
-            let dropCount = rows.reduce(function (accumulator, row) { 
-                if (result[row] === screen.width / boxsize) {
-                     rows.forEach(function (otherRow) {
-                        if (accumulator[otherRow] === undefined) {
-                        accumulator[otherRow] = 0;
-                        }
-                         if (otherRow < row) {
-                             accumulator[otherRow] += boxsize;
-                        }
-                     });
-                } return accumulator;
-            }, {});
-
-            screen.existingBlocks = screen.existingBlocks.map(function(block) {
-                block.y = block.y + dropCount[block.y];
-                return block; 
-            })
-        }
-
-        function renderSquare(ctx, block) {
-            ctx.beginPath();
-            ctx.moveTo(block.x, block.y);
-            ctx.lineTo(block.x + block.w, block.y);
-            ctx.lineTo(block.x + block.w, block.y - block.l);
-            ctx.lineTo(block.x, block.y - block.l);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-        }
-
-        function drawSquare(x, y) {
-            return {
-                x: x,
-                y: y,
-                l: boxsize,
-                w: boxsize
+            else {
+                return false;
             }
-        }
-
-        function drawI(x, y, rotation) {
-            if (rotation === 0 | rotation === 180) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x, y - boxsize * 1),
-                    drawSquare(x, y - boxsize * 2),
-                    drawSquare(x, y - boxsize * 3)
-                ];
-            }
-
-            else if (rotation === 90 | rotation === 270) {
-                return [
-                    drawSquare(x, y - boxsize * 1),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x + boxsize * 2, y - boxsize * 1),
-                    drawSquare(x + boxsize * 3, y - boxsize * 1),
-                ];
-            }
-        }
-
-        function drawL(x, y, rotation) {
-            if (rotation === 0) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x, y - boxsize * 1),
-                    drawSquare(x, y - boxsize * 2)
-                ];
-            }
-
-            else if (rotation === 90) {
-                return [
-                    drawSquare(x, y - boxsize * 1),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x - boxsize * 1, y - boxsize * 1),
-                    drawSquare(x - boxsize * 1, y + boxsize * 0)
-                ];
-            }
-
-            else if (rotation === 180) {
-                return [
-                    drawSquare(x, y - boxsize * 1),
-                    drawSquare(x, y - boxsize * 2),
-                    drawSquare(x - boxsize * 1, y - boxsize * 2),
-                    drawSquare(x, y + boxsize * 0)
-                ];
-            }
-
-            else if (rotation === 270) {
-                return [
-                    drawSquare(x, y - boxsize * 1),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x - boxsize * 1, y - boxsize * 1),
-                    drawSquare(x + boxsize * 1, y - boxsize * 2)
-                ];
-            }
-        }
-
-        function drawB(x, y, rotation) {
-            if (rotation === 0 | rotation === 90 | rotation === 180 | rotation === 270) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x, y - boxsize * 1)
-                ];
-            }
-        }
-
-        function drawT(x, y, rotation) {
-            if (rotation === 0) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x - boxsize * 1, y),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x, y - boxsize * 1)
-                ];
-            }
-
-            else if (rotation === 90) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x - boxsize * 0, y + boxsize * 1),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x, y - boxsize * 1)
-                ];
-            }
-
-            else if (rotation === 180) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x - boxsize * 0, y + boxsize * 1),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x - boxsize * 1, y - boxsize * 0)
-                ];
-            }
-
-            else if (rotation === 270) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x - boxsize * 0, y + boxsize * 1),
-                    drawSquare(x + boxsize * 0, y - boxsize * 1),
-                    drawSquare(x - boxsize * 1, y - boxsize * 0)
-                ];
-            }
-        }
-
-        function drawS(x, y, rotation) {
-            if (rotation === 0 | rotation === 180) {
-                return [
-                    drawSquare(x, y - boxsize * 0),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x + boxsize * 2, y - boxsize * 1)
-                ];
-            }
-
-            else if (rotation === 90 | rotation === 270) {
-                return [
-                    drawSquare(x + boxsize * 2, y - boxsize * 0),
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x + boxsize * 2, y + boxsize * 1)
-                ];
-            }
-        }
-
-        function drawZ(x, y, rotation) {
-            if (rotation === 0 | rotation === 180) {
-                return [
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x + boxsize * 2, y),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x - boxsize * 0, y - boxsize * 1)
-                ];
-            }
-
-            else if (rotation === 90 | rotation === 270) {
-                return [
-                    drawSquare(x + boxsize * 1, y),
-                    drawSquare(x - boxsize * 0, y),
-                    drawSquare(x + boxsize * 1, y - boxsize * 1),
-                    drawSquare(x - boxsize * 0, y + boxsize * 1)
-                ];
-            }
-        }
-
-        var screen = {
-            height: 512,
-            width: 336,  
-            currentShape: {
-                x: 160,
-                y: boxsize * 4,
-                rotation: 0,
-                type: 'I',
-                blocks: [],
-                landed: false
-            },
-            existingBlocks: [],
-            timer: null,
-            shapes: {
-                I: drawI,
-                L: drawL,
-                B: drawB,
-                T: drawT,
-                S: drawS,
-                Z: drawZ
-            },
-            shapesGenerator: ["I", "L", "B", "T", "S", "Z"]
-        }
-
-        function draw() {
-            if (canvas.getContext) {
-                var ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Actually draw the blocks
-                screen.currentShape.blocks = screen.shapes[screen.currentShape.type](screen.currentShape.x, 
-                                                                                     screen.currentShape.y, 
-                                                                                     screen.currentShape.rotation);;
-                [...screen.existingBlocks, ...screen.currentShape.blocks].forEach(function(block) { return renderSquare(ctx, block); }); 
-            }
-        }
-
-        document.addEventListener("keydown", function(e) {
-            // make backup of current shape
-            screen.currentShapeBeforeMove = {
-                x: screen.currentShape.x,
-                y: screen.currentShape.y,
-                rotation: screen.currentShape.rotation,
-                type: screen.currentShape.type,
-                blocks: screen.currentShape.blocks
-            }
-
-            const keyName = e.key;
-            
-            if (keyName === "ArrowLeft") {
-                screen.currentShape.x -= boxsize;
-            }
-            else if (keyName === "ArrowRight") {
-                screen.currentShape.x += boxsize;
-            }
-            else if (keyName === "ArrowDown") {
-                screen.currentShape.y += boxsize;
-            }
-            else if (keyName.toLowerCase() === "z") {
-                screen.currentShape.rotation -= 90;
-                if (screen.currentShape.rotation < 0) {
-                    screen.currentShape.rotation = 270;
-                }
-            }
-            else if (keyName.toLowerCase() === "x") {
-                screen.currentShape.rotation += 90;
-                if (screen.currentShape.rotation > 270) {
-                    screen.currentShape.rotation = 0;
-                }
-            }
-
-            let nextPosition = screen.shapes[screen.currentShape.type](screen.currentShape.x, 
-                                                                       screen.currentShape.y, 
-                                                                       screen.currentShape.rotation);
-            
-            screen.currentShape.blocks = nextPosition;
-
-            // Collision checking
-            if (!(bboxL(nextPosition) >= 0 && bboxR(nextPosition) <= screen.width && bboxB(nextPosition) <= screen.height && !hasShapeOverlap(nextPosition))) {
-                // Revert currentShape to our backup before we moved it
-                screen.currentShape = screen.currentShapeBeforeMove;
-            }
-            
-            // Else if shape has been moved down, reset the fall counter
-            if (keyName === "ArrowDown") {
-                fallTick = 0;
-            }
-            
-            draw();
         });
 
-        let fallTick = 0;
-        setInterval(function() {
-            fallTick += 1;
-            
-            // make block fall after 3 seconds
-            if (fallTick === 30) {
-                document.dispatchEvent(new KeyboardEvent('keydown', {'key':'ArrowDown'}));
-                fallTick = 0;
+        return !hasCollided.every(function (col) {
+            return col === false;
+        })
+    }
+
+    function hasLanded(blocks) {
+        let isOnGround = bboxB(blocks) >= game.height;
+        if (isOnGround) {
+            return true
+        } else {
+            let isOnOtherShape = blocks.map(function (block) {
+                if (game.existingBlocks.find(function (eblock) {
+                    return eblock.x === block.x && (eblock.y - boxsize) === block.y;
+                })) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            });
+
+            return !isOnOtherShape.every(function (col) {
+                return col === false;
+            });
+        }
+    }
+
+    function solidifyShapes() {
+        game.currentShape.blocks.forEach(function (block) {
+            if (!game.existingBlocks.find(function (eblock) {
+                return eblock.x === block.x && eblock.y === block.y;
+            })) {
+                game.existingBlocks.push(block);
+            };
+        });
+
+        let nextShape = game.shapesGenerator[Math.floor(Math.random() * game.shapesGenerator.length)];
+        game.currentShape.type = nextShape;
+        game.currentShape.x = 160;
+        game.currentShape.y = boxsize * 3;
+        game.currentShape.rotation = 0;
+        game.currentShape.landed = false;
+        game.currentShape.name = names[Math.floor(Math.random() * names.length)];
+        game.buffer = [];
+    }
+
+    function rowDeletion() {
+        let result = game.existingBlocks.reduce(function (accumulator, block) {
+            if (accumulator[block.y] !== undefined) {
+                accumulator[block.y] += 1;
+            }
+            else {
+                accumulator[block.y] = 1;
+            }
+            return accumulator;
+        }, {});
+
+        game.existingBlocks = game.existingBlocks.filter(function (block) {
+            if (result[block.y] === game.width / boxsize) {
+                game.score ++;
+                console.log(game.score);
+                return false;
+            }
+            else {
+                return true;
+            }
+        });
+
+        let rows = Object.keys(result);
+        let dropCount = rows.reduce(function (accumulator, row) {
+            if (result[row] === game.width / boxsize) {
+                rows.forEach(function (otherRow) {
+                    if (accumulator[otherRow] === undefined) {
+                        accumulator[otherRow] = 0;
+                    }
+                    if (otherRow < row) {
+                        accumulator[otherRow] += boxsize;
+                    }
+                });
+            } return accumulator;
+        }, {});
+
+        game.existingBlocks = game.existingBlocks.map(function (block) {
+            block.y = block.y + (dropCount[block.y] || 0);
+            return block;
+        })
+    }
+
+    function renderSquare(ctx, block) {
+        ctx.beginPath();
+        ctx.moveTo(block.x, block.y);
+        ctx.lineTo(block.x + block.w, block.y);
+        ctx.lineTo(block.x + block.w, block.y - block.l);
+        ctx.lineTo(block.x, block.y - block.l);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    function drawSquare(x, y) {
+        return {
+            x: x,
+            y: y,
+            l: boxsize,
+            w: boxsize
+        }
+    }
+
+    function drawI(x, y, rotation) {
+        if (rotation === 0 | rotation === 180) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x, y - boxsize * 1),
+                drawSquare(x, y - boxsize * 2),
+                drawSquare(x, y - boxsize * 3)
+            ];
+        }
+
+        else if (rotation === 90 | rotation === 270) {
+            return [
+                drawSquare(x, y - boxsize * 1),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x + boxsize * 2, y - boxsize * 1),
+                drawSquare(x + boxsize * 3, y - boxsize * 1),
+            ];
+        }
+    }
+
+    function drawL(x, y, rotation) {
+        if (rotation === 0) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x, y - boxsize * 1),
+                drawSquare(x, y - boxsize * 2)
+            ];
+        }
+
+        else if (rotation === 90) {
+            return [
+                drawSquare(x, y - boxsize * 1),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x - boxsize * 1, y - boxsize * 1),
+                drawSquare(x - boxsize * 1, y + boxsize * 0)
+            ];
+        }
+
+        else if (rotation === 180) {
+            return [
+                drawSquare(x, y - boxsize * 1),
+                drawSquare(x, y - boxsize * 2),
+                drawSquare(x - boxsize * 1, y - boxsize * 2),
+                drawSquare(x, y + boxsize * 0)
+            ];
+        }
+
+        else if (rotation === 270) {
+            return [
+                drawSquare(x, y - boxsize * 1),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x - boxsize * 1, y - boxsize * 1),
+                drawSquare(x + boxsize * 1, y - boxsize * 2)
+            ];
+        }
+    }
+
+    function drawB(x, y, rotation) {
+        if (rotation === 0 | rotation === 90 | rotation === 180 | rotation === 270) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x, y - boxsize * 1)
+            ];
+        }
+    }
+
+    function drawT(x, y, rotation) {
+        if (rotation === 0) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x - boxsize * 1, y),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x, y - boxsize * 1)
+            ];
+        }
+
+        else if (rotation === 90) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x - boxsize * 0, y + boxsize * 1),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x, y - boxsize * 1)
+            ];
+        }
+
+        else if (rotation === 180) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x - boxsize * 0, y + boxsize * 1),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x - boxsize * 1, y - boxsize * 0)
+            ];
+        }
+
+        else if (rotation === 270) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x - boxsize * 0, y + boxsize * 1),
+                drawSquare(x + boxsize * 0, y - boxsize * 1),
+                drawSquare(x - boxsize * 1, y - boxsize * 0)
+            ];
+        }
+    }
+
+    function drawS(x, y, rotation) {
+        if (rotation === 0 | rotation === 180) {
+            return [
+                drawSquare(x, y - boxsize * 0),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x + boxsize * 2, y - boxsize * 1)
+            ];
+        }
+
+        else if (rotation === 90 | rotation === 270) {
+            return [
+                drawSquare(x + boxsize * 2, y - boxsize * 0),
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x + boxsize * 2, y + boxsize * 1)
+            ];
+        }
+    }
+
+    function drawZ(x, y, rotation) {
+        if (rotation === 0 | rotation === 180) {
+            return [
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x + boxsize * 2, y),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x - boxsize * 0, y - boxsize * 1)
+            ];
+        }
+
+        else if (rotation === 90 | rotation === 270) {
+            return [
+                drawSquare(x + boxsize * 1, y),
+                drawSquare(x - boxsize * 0, y),
+                drawSquare(x + boxsize * 1, y - boxsize * 1),
+                drawSquare(x - boxsize * 0, y + boxsize * 1)
+            ];
+        }
+    }
+
+    function draw() {
+        if (canvas.getContext) {
+            var ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Actually draw the blocks
+            game.currentShape.blocks = game.shapes[game.currentShape.type](game.currentShape.x,
+                game.currentShape.y,
+                game.currentShape.rotation);
+
+            [...game.existingBlocks, ...game.currentShape.blocks].forEach(function (block) { return renderSquare(ctx, block); });
+
+            ctx.font = boxsize + 'px serif';
+            ctx.fillText(game.buffer.join(""), 0, boxsize);         
+            ctx.fillText(game.currentShape.name, bboxL(game.currentShape.blocks), bboxT(game.currentShape.blocks) - (boxsize * 1.25));
+            ctx.fillText("score:" + game.score, 270, boxsize);
+        }
+    }
+
+    document.addEventListener("keydown", function (e) {
+        const keyName = e.key;
+
+        const isAlpha = /^[a-zA-Z]$/;
+        if (keyName.match(isAlpha) && game.buffer.join("") !== game.currentShape.name) {
+            game.buffer.push(keyName);
+            let bitMask = game.buffer.map(function(currentChar, i) {
+                return currentChar === game.currentShape.name[i];
+            });
+            if (bitMask.includes(false)) {
+                game.buffer = [];
+                doMovement("ArrowDown");
+            }
+            else {
                 draw();
             }
+        }
 
-            if (hasLanded(screen.currentShape.blocks) && !screen.currentShape.landed) {
-                screen.currentShape.landed = true;
-                setTimeout(function() {
-                   if (hasLanded(screen.currentShape.blocks)) {
-                       solidifyShapes();
-                       rowDeletion();
-                   }
-                }, 500);
-            }
-            else if (!hasLanded(screen.currentShape.blocks) && screen.currentShape.landed) {
-                screen.currentShape.landed = false;
-            }
-        }, 100);
+        if (game.buffer.join("") === game.currentShape.name) {
+            doMovement(keyName); 
+        }
+    });
 
-        init();
+    function doMovement(keyName) {
+        // make backup of current shape
+        game.currentShapeBeforeMove = {
+            x: game.currentShape.x,
+            y: game.currentShape.y,
+            rotation: game.currentShape.rotation,
+            type: game.currentShape.type,
+            blocks: game.currentShape.blocks,
+            hasLanded: game.currentShape.hasLanded,
+            name: game.currentShape.name
+        }
+
+        if (keyName === "ArrowLeft") {
+            game.currentShape.x -= boxsize;
+        }
+        else if (keyName === "ArrowRight") {
+            game.currentShape.x += boxsize;
+        }
+        else if (keyName === "ArrowDown") {
+            game.currentShape.y += boxsize;
+        }
+        else if (keyName.toLowerCase() === "z") {
+            game.currentShape.rotation -= 90;
+            if (game.currentShape.rotation < 0) {
+                game.currentShape.rotation = 270;
+            }
+        }
+        else if (keyName.toLowerCase() === "x") {
+            game.currentShape.rotation += 90;
+            if (game.currentShape.rotation > 270) {
+                game.currentShape.rotation = 0;
+            }
+        }
+
+        let nextPosition = game.shapes[game.currentShape.type](game.currentShape.x,
+            game.currentShape.y,
+            game.currentShape.rotation);
+
+        game.currentShape.blocks = nextPosition;
+
+        // Collision checking
+        if (!(bboxL(nextPosition) >= 0 && bboxR(nextPosition) <= game.width && bboxB(nextPosition) <= game.height && !hasShapeOverlap(nextPosition))) {
+            // Revert currentShape to our backup before we moved it
+            game.currentShape = game.currentShapeBeforeMove;
+        }
+
+        // Else if shape has been moved down, reset the fall counter
+        if (keyName === "ArrowDown") {
+            fallTick = 0;
+        }
+
         draw();
-        </script>
+    }
+
+    let fallTick = 0;
+    setInterval(function () {
+        fallTick += 1;
+
+        // make block fall after 3 seconds
+        if (fallTick === 6) {
+            doMovement("ArrowDown");
+            fallTick = 0;
+        }
+
+        if (hasLanded(game.currentShape.blocks) && !game.currentShape.landed) {
+            game.currentShape.landed = true;
+            setTimeout(function () {
+                if (game.currentShape.landed && hasLanded(game.currentShape.blocks)) {
+                    solidifyShapes();
+                    rowDeletion();
+                }
+            }, 500);
+        }
+        else if (!hasLanded(game.currentShape.blocks) && game.currentShape.landed) {
+            game.currentShape.landed = false;
+        }
+    }, 100);
+
+    init();
+    draw();
+</script>
+
 </html>
